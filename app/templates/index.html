@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -15,7 +15,12 @@
             padding: 0;
         }
 
+        /* ============ THEME VARIABLES ============ */
         :root {
+            --transition: 0.3s ease;
+        }
+
+        [data-theme="dark"] {
             --bg: #0f1117;
             --surface: #1a1d27;
             --surface-2: #23273a;
@@ -28,52 +33,140 @@
             --green-bg: rgba(52, 211, 153, 0.1);
             --red: #f87171;
             --red-bg: rgba(248, 113, 113, 0.1);
-            --yellow: #fbbf24;
-            --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-            --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --logo-fill: #e4e6ef;
+            --toggle-bg: #23273a;
+            --toggle-border: #3a3f5c;
+        }
+
+        [data-theme="light"] {
+            --bg: #f5f6fa;
+            --surface: #ffffff;
+            --surface-2: #f0f1f5;
+            --border: #d8dae5;
+            --text: #1a1d27;
+            --text-muted: #6b7084;
+            --accent: #5563e8;
+            --accent-glow: rgba(85, 99, 232, 0.12);
+            --green: #16a34a;
+            --green-bg: rgba(22, 163, 74, 0.08);
+            --red: #dc2626;
+            --red-bg: rgba(220, 38, 38, 0.06);
+            --logo-fill: #1a1d27;
+            --toggle-bg: #e8e9f0;
+            --toggle-border: #c8cad5;
         }
 
         body {
-            font-family: var(--sans);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
             min-height: 100vh;
+            transition: background var(--transition), color var(--transition);
         }
 
-        /* --- Layout --- */
+        /* ============ LAYOUT ============ */
         .container {
             max-width: 820px;
             margin: 0 auto;
             padding: 2rem 1.5rem 4rem;
         }
 
+        /* ============ HEADER ============ */
         header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             text-align: center;
             margin-bottom: 2.5rem;
             padding-bottom: 1.5rem;
             border-bottom: 1px solid var(--border);
+            position: relative;
+            transition: border-color var(--transition);
+        }
+
+        .logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .og-logo {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .og-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
 
         header h1 {
             font-size: 1.55rem;
             font-weight: 700;
             letter-spacing: -0.02em;
-            margin-bottom: 0.35rem;
         }
 
         header p {
             color: var(--text-muted);
             font-size: 0.88rem;
+            transition: color var(--transition);
         }
 
-        /* --- Form --- */
+        /* ============ THEME TOGGLE ============ */
+        .theme-toggle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--toggle-bg);
+            border: 1px solid var(--toggle-border);
+            border-radius: 999px;
+            padding: 0.35rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            width: 60px;
+            height: 30px;
+            transition: background var(--transition), border-color var(--transition);
+        }
+
+        .theme-toggle .toggle-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="light"] .theme-toggle .toggle-thumb {
+            transform: translateX(30px);
+        }
+
+        .toggle-icon {
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        /* ============ CARD ============ */
         .card {
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
+            transition: background var(--transition), border-color var(--transition);
         }
 
         .card-title {
@@ -83,14 +176,17 @@
             letter-spacing: 0.06em;
             color: var(--text-muted);
             margin-bottom: 1rem;
+            transition: color var(--transition);
         }
 
+        /* ============ FORM ============ */
         label {
             display: block;
             font-size: 0.82rem;
             font-weight: 500;
             color: var(--text-muted);
             margin-bottom: 0.35rem;
+            transition: color var(--transition);
         }
 
         textarea,
@@ -100,11 +196,11 @@
             border: 1px solid var(--border);
             border-radius: 6px;
             color: var(--text);
-            font-family: var(--sans);
+            font-family: 'Inter', -apple-system, sans-serif;
             font-size: 0.9rem;
             padding: 0.65rem 0.8rem;
             outline: none;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s, background var(--transition), color var(--transition);
         }
 
         textarea:focus,
@@ -125,6 +221,7 @@
             margin-top: 1rem;
         }
 
+        /* ============ BUTTON ============ */
         .btn {
             display: inline-flex;
             align-items: center;
@@ -135,13 +232,13 @@
             padding: 0.7rem 1rem;
             background: var(--accent);
             color: #fff;
-            font-family: var(--sans);
+            font-family: 'Inter', -apple-system, sans-serif;
             font-size: 0.88rem;
             font-weight: 600;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            transition: opacity 0.15s;
+            transition: opacity 0.15s, background var(--transition);
         }
 
         .btn:hover {
@@ -153,7 +250,7 @@
             cursor: not-allowed;
         }
 
-        /* --- Spinner --- */
+        /* ============ SPINNER ============ */
         .spinner {
             width: 16px;
             height: 16px;
@@ -174,9 +271,17 @@
             }
         }
 
-        /* --- Result --- */
+        /* ============ RESULT ============ */
         #result {
             display: none;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
 
         .badge {
@@ -188,6 +293,7 @@
             font-size: 0.75rem;
             font-weight: 600;
             letter-spacing: 0.02em;
+            transition: background var(--transition), color var(--transition);
         }
 
         .badge.verified {
@@ -200,10 +306,40 @@
             color: var(--red);
         }
 
+        .prompt-echo {
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 0.84rem;
+            margin-top: 0.75rem;
+            margin-bottom: 0.75rem;
+            transition: color var(--transition);
+        }
+
+        .response-text {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            white-space: pre-wrap;
+            font-size: 0.88rem;
+            line-height: 1.65;
+            max-height: 400px;
+            overflow-y: auto;
+            transition: background var(--transition), border-color var(--transition);
+        }
+
+        .sep {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 1.25rem 0;
+            transition: border-color var(--transition);
+        }
+
+        /* ============ META GRID ============ */
         .meta-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 0.75rem 1.5rem;
+            gap: 0.85rem 1.5rem;
             margin-top: 1rem;
         }
 
@@ -216,33 +352,18 @@
         }
 
         .meta-item .val {
-            font-family: var(--mono);
+            font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
             font-size: 0.82rem;
             word-break: break-all;
             color: var(--text);
+            transition: color var(--transition);
         }
 
-        .response-text {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 1rem;
-            margin-top: 1rem;
-            white-space: pre-wrap;
-            font-size: 0.88rem;
-            line-height: 1.65;
-            max-height: 400px;
-            overflow-y: auto;
+        .meta-full {
+            grid-column: 1 / -1;
         }
 
-        .prompt-echo {
-            color: var(--text-muted);
-            font-style: italic;
-            font-size: 0.84rem;
-            margin-bottom: 0.75rem;
-        }
-
-        /* --- Error --- */
+        /* ============ ERROR ============ */
         .error-box {
             background: var(--red-bg);
             border: 1px solid rgba(248, 113, 113, 0.25);
@@ -252,30 +373,43 @@
             font-size: 0.88rem;
             margin-top: 1rem;
             display: none;
+            transition: background var(--transition), color var(--transition);
         }
 
-        /* Full-width meta */
-        .meta-full {
-            grid-column: 1 / -1;
-        }
-
-        /* Separator */
-        .sep {
-            border: none;
-            border-top: 1px solid var(--border);
-            margin: 1rem 0;
-        }
-
+        /* ============ FOOTER ============ */
         footer {
             text-align: center;
             padding-top: 2rem;
             font-size: 0.75rem;
             color: var(--text-muted);
+            transition: color var(--transition);
         }
 
         footer a {
             color: var(--accent);
             text-decoration: none;
+            transition: color var(--transition);
+        }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 600px) {
+            .row {
+                grid-template-columns: 1fr;
+            }
+
+            .meta-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .theme-toggle {
+                position: static;
+                margin-bottom: 1rem;
+                align-self: flex-end;
+            }
+
+            header {
+                align-items: stretch;
+            }
         }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -286,7 +420,20 @@
     <div class="container">
         <!-- Header -->
         <header>
-            <h1>⬡ Verifiable AI Output Demo</h1>
+            <!-- Theme Toggle -->
+            <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <div class="toggle-thumb">
+                    <span class="toggle-icon" id="toggleIcon">🌙</span>
+                </div>
+            </button>
+
+            <div class="logo-row">
+                <!-- OpenGradient Logo -->
+                <div class="og-logo">
+                    <img src="/static/og-logo.jpg" alt="OpenGradient">
+                </div>
+                <h1>Verifiable AI Output Demo</h1>
+            </div>
             <p>TEE-verified LLM inference via OpenGradient · x402 on-chain settlement</p>
         </header>
 
@@ -327,7 +474,7 @@
 
         <!-- Result Card -->
         <div id="result" class="card">
-            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+            <div class="result-header">
                 <div class="card-title" style="margin-bottom:0;">Inference Result</div>
                 <span id="badge" class="badge"></span>
             </div>
@@ -370,8 +517,6 @@
                     <label>Environment</label>
                     <div class="val" id="metaEnv">—</div>
                 </div>
-
-                <!-- Payment / settlement hashes — x402 protocol receipts -->
                 <div class="meta-item meta-full">
                     <label>Payment Hash (x402)</label>
                     <div class="val" id="metaPaymentHash">—</div>
@@ -391,6 +536,30 @@
     </div>
 
     <script>
+        /* ========== THEME TOGGLE ========== */
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('vaod-theme', next);
+            updateToggleIcon(next);
+        }
+
+        function updateToggleIcon(theme) {
+            document.getElementById('toggleIcon').textContent = theme === 'dark' ? '🌙' : '☀️';
+        }
+
+        // Restore saved theme
+        (function () {
+            const saved = localStorage.getItem('vaod-theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+                updateToggleIcon(saved);
+            }
+        })();
+
+        /* ========== INFERENCE ========== */
         async function runInference() {
             const btn = document.getElementById('submitBtn');
             const errorBox = document.getElementById('errorBox');
@@ -399,7 +568,6 @@
 
             if (!prompt) { alert('Please enter a prompt.'); return; }
 
-            // UI: loading state
             btn.classList.add('loading');
             btn.disabled = true;
             btn.querySelector('.btn-text').textContent = 'Running…';
@@ -425,11 +593,9 @@
                     return;
                 }
 
-                // Populate result card
                 document.getElementById('promptEcho').textContent = '▸ ' + data.prompt;
                 document.getElementById('responseText').textContent = data.response;
 
-                // Verification badge
                 const badge = document.getElementById('badge');
                 if (data.verification_status === 'verified') {
                     badge.className = 'badge verified';
@@ -439,7 +605,6 @@
                     badge.textContent = '○ Unverified';
                 }
 
-                // Metadata fields
                 document.getElementById('metaModel').textContent = data.model || '—';
                 document.getElementById('metaExecMode').textContent = data.execution_mode || '—';
                 document.getElementById('metaSettlement').textContent = data.settlement_mode || '—';
@@ -461,7 +626,6 @@
             }
         }
 
-        // Submit on Ctrl+Enter
         document.getElementById('prompt').addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'Enter') runInference();
         });
