@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Verifiable AI Output Demo — TEE-verified LLM inference via OpenGradient x402">
+    <title>Verifiable AI Output Demo</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface-2: #23273a;
+            --border: #2e3348;
+            --text: #e4e6ef;
+            --text-muted: #8b90a5;
+            --accent: #6c7aff;
+            --accent-glow: rgba(108, 122, 255, 0.15);
+            --green: #34d399;
+            --green-bg: rgba(52, 211, 153, 0.1);
+            --red: #f87171;
+            --red-bg: rgba(248, 113, 113, 0.1);
+            --yellow: #fbbf24;
+            --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* --- Layout --- */
+        .container {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h1 {
+            font-size: 1.55rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.35rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+
+        /* --- Form --- */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+        }
+
+        textarea,
+        select {
+            width: 100%;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 0.9rem;
+            padding: 0.65rem 0.8rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        textarea:focus,
+        select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            margin-top: 1.25rem;
+            padding: 0.7rem 1rem;
+            background: var(--accent);
+            color: #fff;
+            font-family: var(--sans);
+            font-size: 0.88rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        /* --- Spinner --- */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: none;
+        }
+
+        .btn.loading .spinner {
+            display: block;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* --- Result --- */
+        #result {
+            display: none;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .badge.verified {
+            background: var(--green-bg);
+            color: var(--green);
+        }
+
+        .badge.unverified {
+            background: var(--red-bg);
+            color: var(--red);
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .meta-item label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.15rem;
+        }
+
+        .meta-item .val {
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            word-break: break-all;
+            color: var(--text);
+        }
+
+        .response-text {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            font-size: 0.88rem;
+            line-height: 1.65;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .prompt-echo {
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 0.84rem;
+            margin-bottom: 0.75rem;
+        }
+
+        /* --- Error --- */
+        .error-box {
+            background: var(--red-bg);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+            border-radius: 6px;
+            padding: 1rem;
+            color: var(--red);
+            font-size: 0.88rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        /* Full-width meta */
+        .meta-full {
+            grid-column: 1 / -1;
+        }
+
+        /* Separator */
+        .sep {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 1rem 0;
+        }
+
+        footer {
+            text-align: center;
+            padding-top: 2rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>⬡ Verifiable AI Output Demo</h1>
+            <p>TEE-verified LLM inference via OpenGradient · x402 on-chain settlement</p>
+        </header>
+
+        <!-- Input Card -->
+        <div class="card">
+            <div class="card-title">Inference Request</div>
+
+            <label for="prompt">Prompt</label>
+            <textarea id="prompt" placeholder="Enter your prompt here…"></textarea>
+
+            <div class="row">
+                <div>
+                    <label for="model">Model</label>
+                    <select id="model">
+                        {% for m in models %}
+                        <option value="{{ m }}" {% if m=='GPT_5_MINI' %}selected{% endif %}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="settlement">Settlement Mode</label>
+                    <select id="settlement">
+                        {% for s in settlement_modes %}
+                        <option value="{{ s }}" {% if s=='SETTLE_METADATA' %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button id="submitBtn" class="btn" onclick="runInference()">
+                <span class="spinner"></span>
+                <span class="btn-text">Run Verified Inference</span>
+            </button>
+        </div>
+
+        <!-- Error -->
+        <div id="errorBox" class="error-box"></div>
+
+        <!-- Result Card -->
+        <div id="result" class="card">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+                <div class="card-title" style="margin-bottom:0;">Inference Result</div>
+                <span id="badge" class="badge"></span>
+            </div>
+
+            <div id="promptEcho" class="prompt-echo"></div>
+            <div id="responseText" class="response-text"></div>
+
+            <hr class="sep">
+
+            <!--
+                ============================================================
+                VERIFICATION & PAYMENT METADATA
+                All fields below are sourced directly from the OpenGradient
+                SDK's TextGenerationOutput object.  No fields are invented.
+                ============================================================
+            -->
+            <div class="card-title">Execution &amp; Verification Metadata</div>
+            <div class="meta-grid">
+                <div class="meta-item">
+                    <label>Model</label>
+                    <div class="val" id="metaModel">—</div>
+                </div>
+                <div class="meta-item">
+                    <label>Execution Mode</label>
+                    <div class="val" id="metaExecMode">—</div>
+                </div>
+                <div class="meta-item">
+                    <label>Settlement Mode</label>
+                    <div class="val" id="metaSettlement">—</div>
+                </div>
+                <div class="meta-item">
+                    <label>Finish Reason</label>
+                    <div class="val" id="metaFinish">—</div>
+                </div>
+                <div class="meta-item">
+                    <label>Timestamp (UTC)</label>
+                    <div class="val" id="metaTimestamp">—</div>
+                </div>
+                <div class="meta-item">
+                    <label>Environment</label>
+                    <div class="val" id="metaEnv">—</div>
+                </div>
+
+                <!-- Payment / settlement hashes — x402 protocol receipts -->
+                <div class="meta-item meta-full">
+                    <label>Payment Hash (x402)</label>
+                    <div class="val" id="metaPaymentHash">—</div>
+                </div>
+                <div class="meta-item meta-full">
+                    <label>Transaction Hash (Settlement)</label>
+                    <div class="val" id="metaTxHash">—</div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            Powered by <a href="https://opengradient.ai" target="_blank">OpenGradient</a> ·
+            <a href="https://docs.opengradient.ai/developers/sdk/llm.html" target="_blank">SDK Docs</a> ·
+            <a href="https://explorer.opengradient.ai" target="_blank">Block Explorer</a>
+        </footer>
+    </div>
+
+    <script>
+        async function runInference() {
+            const btn = document.getElementById('submitBtn');
+            const errorBox = document.getElementById('errorBox');
+            const resultDiv = document.getElementById('result');
+            const prompt = document.getElementById('prompt').value.trim();
+
+            if (!prompt) { alert('Please enter a prompt.'); return; }
+
+            // UI: loading state
+            btn.classList.add('loading');
+            btn.disabled = true;
+            btn.querySelector('.btn-text').textContent = 'Running…';
+            errorBox.style.display = 'none';
+            resultDiv.style.display = 'none';
+
+            try {
+                const res = await fetch('/infer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        model: document.getElementById('model').value,
+                        settlement_mode: document.getElementById('settlement').value,
+                    }),
+                });
+
+                const data = await res.json();
+
+                if (!data.success) {
+                    errorBox.textContent = data.error || 'Inference failed.';
+                    errorBox.style.display = 'block';
+                    return;
+                }
+
+                // Populate result card
+                document.getElementById('promptEcho').textContent = '▸ ' + data.prompt;
+                document.getElementById('responseText').textContent = data.response;
+
+                // Verification badge
+                const badge = document.getElementById('badge');
+                if (data.verification_status === 'verified') {
+                    badge.className = 'badge verified';
+                    badge.textContent = '✓ Verified (TEE + x402)';
+                } else {
+                    badge.className = 'badge unverified';
+                    badge.textContent = '○ Unverified';
+                }
+
+                // Metadata fields
+                document.getElementById('metaModel').textContent = data.model || '—';
+                document.getElementById('metaExecMode').textContent = data.execution_mode || '—';
+                document.getElementById('metaSettlement').textContent = data.settlement_mode || '—';
+                document.getElementById('metaFinish').textContent = data.finish_reason || '—';
+                document.getElementById('metaTimestamp').textContent = data.timestamp || '—';
+                document.getElementById('metaEnv').textContent = data.environment || '—';
+                document.getElementById('metaPaymentHash').textContent = data.payment_hash || '—';
+                document.getElementById('metaTxHash').textContent = data.transaction_hash || '—';
+
+                resultDiv.style.display = 'block';
+
+            } catch (err) {
+                errorBox.textContent = 'Network error: ' + err.message;
+                errorBox.style.display = 'block';
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+                btn.querySelector('.btn-text').textContent = 'Run Verified Inference';
+            }
+        }
+
+        // Submit on Ctrl+Enter
+        document.getElementById('prompt').addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') runInference();
+        });
+    </script>
+</body>
+
+</html>
