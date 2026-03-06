@@ -8,6 +8,7 @@ Start with:  uvicorn app.main:app --reload
 from __future__ import annotations
 
 import logging
+import os
 
 from pathlib import Path
 
@@ -74,6 +75,12 @@ async def startup():
             "The server will start, but inference calls will fail until "
             "a valid OG_PRIVATE_KEY is set in .env."
         )
+        return
+
+    # In serverless environments (Vercel), skip the slow Permit2 approval
+    # during cold start — it will happen lazily on first inference call.
+    if os.environ.get("VERCEL"):
+        logger.info("Serverless environment detected — skipping startup approval")
         return
 
     # Pre-initialise the client and ensure Permit2 approval.

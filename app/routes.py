@@ -9,6 +9,7 @@ GET  /health — Simple health-check.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Request
@@ -22,8 +23,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Jinja2 template directory (relative to project root)
-templates = Jinja2Templates(directory="app/templates")
+# Jinja2 template directory (absolute path — works in serverless environments)
+_TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
+templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
 
 
 # ---------------------------------------------------------------------------
