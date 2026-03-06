@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: opengradient-vaod
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OG_PRIVATE_KEY
+        sync: false
+      - key: OG_EMAIL
+        sync: false
+      - key: OG_ENVIRONMENT
+        value: testnet
+      - key: PYTHON_VERSION
+        value: "3.11.9"
