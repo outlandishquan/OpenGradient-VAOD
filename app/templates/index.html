@@ -320,12 +320,23 @@
             border: 1px solid var(--border);
             border-radius: 6px;
             padding: 1rem;
-            white-space: pre-wrap;
             font-size: 0.88rem;
             line-height: 1.65;
             max-height: 400px;
             overflow-y: auto;
             transition: background var(--transition), border-color var(--transition);
+        }
+
+        .response-text p {
+            margin-bottom: 0.6rem;
+        }
+
+        .response-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        .response-text strong {
+            font-weight: 600;
         }
 
         .sep {
@@ -558,6 +569,27 @@
                 updateToggleIcon(saved);
             }
         })();
+        /* ========== CLEAN MARKDOWN ========== */
+        function cleanMarkdown(text) {
+            if (!text) return '';
+            // Escape HTML entities for safety
+            let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Remove heading markers (## Title → Title)
+            s = s.replace(/^#{1,6}\s+/gm, '');
+            // Bold **text** or __text__ → just text
+            s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
+            // Italic *text* or _text_ → just text
+            s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            // Bullet lists: "- item" → clean list item
+            s = s.replace(/^[-•]\s+/gm, '• ');
+            // Numbered lists: keep as-is, they're already clean
+            // Convert double newlines to paragraph breaks
+            s = s.split(/\n\n+/).map(p => '<p>' + p.trim() + '</p>').join('');
+            // Convert remaining single newlines within paragraphs to <br>
+            s = s.replace(/\n/g, '<br>');
+            return s;
+        }
 
         /* ========== INFERENCE ========== */
         async function runInference() {
@@ -594,7 +626,7 @@
                 }
 
                 document.getElementById('promptEcho').textContent = '▸ ' + data.prompt;
-                document.getElementById('responseText').textContent = data.response;
+                document.getElementById('responseText').innerHTML = cleanMarkdown(data.response);
 
                 const badge = document.getElementById('badge');
                 if (data.verification_status === 'verified') {

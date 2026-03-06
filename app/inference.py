@@ -140,10 +140,11 @@ def run_inference(
         result = client.llm.chat(
             model=model_enum,
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a helpful assistant.  Answer concisely."
+                {"role": "system", "content": (
+                        "You are a helpful assistant. Answer concisely in "
+                        "clean plain text. Do NOT use markdown formatting — "
+                        "no hashtags, no asterisks, no bullet dashes. Use "
+                        "natural paragraphs and numbered lists when needed."
                     ),
                 },
                 {"role": "user", "content": prompt},
