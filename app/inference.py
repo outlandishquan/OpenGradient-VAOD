@@ -5,6 +5,13 @@ Orchestrates a single inference call through the OpenGradient SDK and
 returns a structured dictionary containing the model output together with
 all verification and payment metadata surfaced by the SDK.
 
+IMPORTANT – LAZY IMPORTS:
+    The ``opengradient`` package (and its heavy web3/crypto dependencies)
+    is imported *inside* ``run_inference()`` rather than at module level.
+    This keeps the FastAPI server startup lightweight (~50 MB) so it can
+    survive Render's free-tier 512 MB RAM limit.  The first inference
+    call will be a few seconds slower while the SDK loads.
+
 VERIFICATION DATA – WHERE IT COMES FROM:
     ``TextGenerationOutput`` (returned by ``client.llm.chat()``) exposes:
       • ``chat_output``       — dict with the assistant message (``content``,
@@ -28,66 +35,62 @@ import traceback
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-import opengradient as og
-
 from app.config import settings
-from app.og_client import get_client
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Model name → TEE_LLM enum mapping
+# Available model and settlement mode names (strings only — no SDK import)
 # ---------------------------------------------------------------------------
-MODEL_MAP: Dict[str, og.TEE_LLM] = {
-    "GPT_4_1_2025_04_14": og.TEE_LLM.GPT_4_1_2025_04_14,
-    "GPT_5": og.TEE_LLM.GPT_5,
-    "GPT_5_MINI": og.TEE_LLM.GPT_5_MINI,
-    "GPT_5_2": og.TEE_LLM.GPT_5_2,
-    "O4_MINI": og.TEE_LLM.O4_MINI,
-    "CLAUDE_SONNET_4_5": og.TEE_LLM.CLAUDE_SONNET_4_5,
-    "CLAUDE_SONNET_4_6": og.TEE_LLM.CLAUDE_SONNET_4_6,
-    "CLAUDE_HAIKU_4_5": og.TEE_LLM.CLAUDE_HAIKU_4_5,
-    "CLAUDE_OPUS_4_5": og.TEE_LLM.CLAUDE_OPUS_4_5,
-    "CLAUDE_OPUS_4_6": og.TEE_LLM.CLAUDE_OPUS_4_6,
-    "GEMINI_2_5_FLASH": og.TEE_LLM.GEMINI_2_5_FLASH,
-    "GEMINI_2_5_PRO": og.TEE_LLM.GEMINI_2_5_PRO,
-    "GEMINI_2_5_FLASH_LITE": og.TEE_LLM.GEMINI_2_5_FLASH_LITE,
-    "GEMINI_3_PRO": og.TEE_LLM.GEMINI_3_PRO,
-    "GEMINI_3_FLASH": og.TEE_LLM.GEMINI_3_FLASH,
-    "GROK_4": og.TEE_LLM.GROK_4,
-    "GROK_4_FAST": og.TEE_LLM.GROK_4_FAST,
-    "GROK_4_1_FAST": og.TEE_LLM.GROK_4_1_FAST,
-}
+MODEL_NAMES = [
+    "GPT_4_1_2025_04_14",
+    "GPT_5",
+    "GPT_5_MINI",
+    "GPT_5_2",
+    "O4_MINI",
+    "CLAUDE_SONNET_4_5",
+    "CLAUDE_SONNET_4_6",
+    "CLAUDE_HAIKU_4_5",
+    "CLAUDE_OPUS_4_5",
+    "CLAUDE_OPUS_4_6",
+    "GEMINI_2_5_FLASH",
+    "GEMINI_2_5_PRO",
+    "GEMINI_2_5_FLASH_LITE",
+    "GEMINI_3_PRO",
+    "GEMINI_3_FLASH",
+    "GROK_4",
+    "GROK_4_FAST",
+    "GROK_4_1_FAST",
+]
 
-# ---------------------------------------------------------------------------
-# Settlement mode mapping
-# ---------------------------------------------------------------------------
-SETTLEMENT_MAP: Dict[str, og.x402SettlementMode] = {
-    "SETTLE": og.x402SettlementMode.SETTLE,
-    "SETTLE_METADATA": og.x402SettlementMode.SETTLE_METADATA,
-    "SETTLE_BATCH": og.x402SettlementMode.SETTLE_BATCH,
-}
+SETTLEMENT_NAMES = [
+    "SETTLE",
+    "SETTLE_METADATA",
+    "SETTLE_BATCH",
+]
 
 
-def _resolve_model(name: Optional[str]) -> og.TEE_LLM:
+def _resolve_model(og_module, name: Optional[str]):
     """Resolve a model name string to its ``TEE_LLM`` enum value."""
     key = (name or settings.default_model).upper()
-    if key not in MODEL_MAP:
+    try:
+        return getattr(og_module.TEE_LLM, key)
+    except AttributeError:
         raise ValueError(
-            f"Unknown model '{key}'. Available: {', '.join(MODEL_MAP.keys())}"
+            f"Unknown model '{key}'. Available: {', '.join(MODEL_NAMES)}"
         )
-    return MODEL_MAP[key]
 
 
-def _resolve_settlement(name: Optional[str]) -> og.x402SettlementMode:
+def _resolve_settlement(og_module, name: Optional[str]):
     """Resolve a settlement mode string to its enum value."""
     key = (name or "SETTLE_METADATA").upper()
-    if key not in SETTLEMENT_MAP:
+    try:
+        return getattr(og_module.x402SettlementMode, key)
+    except AttributeError:
         raise ValueError(
             f"Unknown settlement mode '{key}'. "
-            f"Available: {', '.join(SETTLEMENT_MAP.keys())}"
+            f"Available: {', '.join(SETTLEMENT_NAMES)}"
         )
-    return SETTLEMENT_MAP[key]
 
 
 # ---------------------------------------------------------------------------
@@ -106,24 +109,29 @@ def run_inference(
     prompt : str
         The user's input text.
     model_name : str, optional
-        Key from ``MODEL_MAP``.  Falls back to ``settings.default_model``.
+        One of ``MODEL_NAMES``.  Falls back to ``settings.default_model``.
     settlement_mode : str, optional
-        Key from ``SETTLEMENT_MAP``.  Falls back to ``SETTLE_METADATA``.
+        One of ``SETTLEMENT_NAMES``.  Falls back to ``SETTLE_METADATA``.
 
     Returns
     -------
     dict
         A flat dictionary containing the model output, verification
-        metadata, and timing information.  See inline comments below for
-        the provenance of each field.
+        metadata, and timing information.
     """
-    model_enum = _resolve_model(model_name)
-    settlement_enum = _resolve_settlement(settlement_mode)
-    client = get_client()
 
     timestamp = datetime.now(timezone.utc).isoformat()
 
     try:
+        # LAZY IMPORT — the opengradient SDK + web3 stack is only loaded
+        # on the first inference call, not at server startup.
+        import opengradient as og  # noqa: E402
+        from app.og_client import get_client
+
+        model_enum = _resolve_model(og, model_name)
+        settlement_enum = _resolve_settlement(og, settlement_mode)
+        client = get_client()
+
         # ---------------------------------------------------------------
         # Call OpenGradient's TEE-verified chat endpoint.
         #
@@ -165,11 +173,6 @@ def run_inference(
 
         # ---------------------------------------------------------------
         # Verification status badge logic.
-        #
-        # The presence of a payment_hash OR transaction_hash proves the
-        # inference was routed through the OpenGradient TEE network.
-        # For TEE providers, transaction_hash is typically "external",
-        # which still indicates verified TEE execution.
         # ---------------------------------------------------------------
         if payment_hash or transaction_hash:
             verification_status = "verified"

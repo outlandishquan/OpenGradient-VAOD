@@ -51,9 +51,13 @@ app.add_middleware(
 # Mount routes
 app.include_router(router)
 
-# Mount static files (logo, etc.)
+# Mount static files BEFORE routes so /static/* is matched first
 _static_dir = Path(__file__).resolve().parent / "static"
-app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+if _static_dir.is_dir():
+    app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+    logger.info("Static files mounted from %s", _static_dir)
+else:
+    logger.warning("Static directory not found: %s", _static_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -61,39 +65,30 @@ app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 # ---------------------------------------------------------------------------
 @app.on_event("startup")
 async def startup():
-    """Validate configuration and pre-warm the OpenGradient client."""
+    """Validate configuration on startup.
+
+    The OpenGradient client and Permit2 approval are initialised lazily
+    on the first inference call to avoid heavy memory usage during
+    startup, which can cause OOM crashes on Render's free tier (512 MB).
+    """
     logger.info("=== Verifiable AI Output Demo — starting ===")
     logger.info("Environment : %s", settings.environment)
+    logger.info("Python PID  : %s", os.getpid())
 
     # Validate that the private key is set
     try:
         settings.validate()
-        logger.info("Configuration OK")
+        logger.info("Configuration OK — private key is set")
     except RuntimeError as exc:
         logger.warning("Config warning: %s", exc)
         logger.warning(
             "The server will start, but inference calls will fail until "
             "a valid OG_PRIVATE_KEY is set in .env."
         )
-        return
 
-    # In serverless environments (Vercel), skip the slow Permit2 approval
-    # during cold start — it will happen lazily on first inference call.
-    if os.environ.get("VERCEL"):
-        logger.info("Serverless environment detected — skipping startup approval")
-        return
-
-    # Pre-initialise the client and ensure Permit2 approval.
-    # This is done eagerly so the first inference call doesn't block.
-    try:
-        from app.og_client import ensure_approval
-
-        logger.info("Ensuring Permit2 OPG approval (5.0 OPG)…")
-        approval = await ensure_approval(opg_amount=5.0)
-        logger.info("Permit2 approval: %s", approval)
-    except Exception as exc:
-        logger.warning(
-            "Could not ensure OPG approval at startup: %s  "
-            "(inference may still work if allowance is already set)",
-            exc,
-        )
+    # NOTE: We deliberately do NOT call ensure_approval() or import the
+    # OpenGradient client at startup.  The SDK + web3 stack uses ~300 MB
+    # of RAM, and Render free tier only provides 512 MB.  Importing
+    # eagerly causes an OOM kill (exit code 254).  The client will be
+    # initialised lazily on the first /infer request instead.
+    logger.info("Startup complete — client will initialise on first request")

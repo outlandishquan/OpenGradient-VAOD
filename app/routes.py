@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from app.inference import run_inference, MODEL_MAP, SETTLEMENT_MAP
+from app.inference import run_inference, MODEL_NAMES, SETTLEMENT_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +50,8 @@ async def index(request: Request):
         "index.html",
         {
             "request": request,
-            "models": list(MODEL_MAP.keys()),
-            "settlement_modes": list(SETTLEMENT_MAP.keys()),
+            "models": MODEL_NAMES,
+            "settlement_modes": SETTLEMENT_NAMES,
         },
     )
 
